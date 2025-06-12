@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import os
 from dotenv import load_dotenv
+from unidecode import unidecode
 
 # Dash app
 app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -14,6 +15,7 @@ server = app.server
 
 # Load environment variables
 load_dotenv('/etc/secrets/env_file')
+# load_dotenv('.env')
 
 # PostgreSQL credentials
 POSTGRES_DB_HOST = os.getenv('POSTGRES_DB_HOST')
@@ -32,7 +34,10 @@ conn = psycopg2.connect(
 )
 cursor = conn.cursor()
 
-heading = html.H1("OnOff Data Exploratory and Analysis", className="bg-secondary text-white p-2 mb-4")
+on_off_head = html.H1("OnOff Data visualisation", className="bg-secondary text-white p-2")
+singer_head = html.H2("Singers visualisation", className="bg-secondary text-white p-2")
+singer_project_head = html.H2("Singers interaction with projects visualisation", className="bg-secondary text-white p-2")
+
 
 def fetch_data(query):
     cursor.execute(query)
@@ -42,17 +47,17 @@ def fetch_data(query):
 
 def singer_gender_graph():
     df = fetch_data("""
-        SELECT gender
+        SELECT name, gender
         FROM singers
     """)
-    genre_counts = df["gender"].value_counts()
-    genre_df = genre_counts.reset_index()
-    genre_df.columns = ['gender', 'count']
+    df = df[df["name"] != "scraper"].drop(columns=["name"])
+    df = df["gender"].value_counts().reset_index()
+    df.columns = ['gender', 'count']
 
     fig = go.Figure(
         data=[go.Pie(
-            labels=genre_df['gender'],
-            values=genre_df['count'],
+            labels=df['gender'],
+            values=df['count'],
             hole=0.3,
             textinfo='label+value',
             textfont_size=12
@@ -64,7 +69,59 @@ def singer_gender_graph():
         height=400,
         annotations=[
             dict(
-                text=f"Total: {genre_df['count'].sum()}",
+                text=f"Total: {df['count'].sum()}",
+                x=1.2,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=18)
+            ),
+            dict(
+                text='Gender',
+                x=1.19,
+                y=1.1,
+                showarrow=False,
+                font=dict(size=18)
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Proportion de male et female"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
+def genres_preprocessing(genre):
+    return unidecode(str(genre).strip().lower())
+
+def singer_project_style():
+    df = fetch_data("""
+        SELECT genres, style
+        FROM project_observations
+    """)
+    df = df[~df["genres"].isna()].reset_index(drop=True)
+    df.loc[:,"genres"] = df["genres"].apply(genres_preprocessing)
+    df = df["style"].value_counts().reset_index()
+    df.columns = ['style', 'count']
+
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=df['style'],
+            values=df['count'],
+            hole=0.3,
+            textinfo='label+value',
+            textfont_size=12
+        )]
+    )
+
+    fig.update_layout(
+        width=500,
+        height=400,
+        annotations=[
+            dict(
+                text=f"Total: {df['count'].sum()}",
                 x=1.2,
                 y=0.5,
                 showarrow=False,
@@ -81,14 +138,24 @@ def singer_gender_graph():
     )
 
     return dbc.Card([
-        dbc.CardHeader(html.H2("Proportion de male et female"), className="text-center"),
-        dcc.Graph(figure=fig, style={"height":250}, config={'response': True})
-    ])
+        dbc.CardHeader(html.H2("Proportion des styles de projets"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
 
 app.layout = dbc.Container(
     [
-        heading,
-        dbc.Col(singer_gender_graph())
+        on_off_head,
+        singer_head,
+        dbc.Row([
+            dbc.Col(singer_gender_graph()),
+        ]),
+        singer_project_head,
+        dbc.Row([
+            dbc.Col(singer_project_style()),
+        ]),
     ],
     fluid=True,
 )

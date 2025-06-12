@@ -7,3 +7,4 @@ psycopg2-binary
 dash-bootstrap-components
 dash-ag-grid
 gunicorn
+unidecode
