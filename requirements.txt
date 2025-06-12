@@ -3,6 +3,7 @@ pandas
 plotly
 numpy
 python-dotenv
-boto3
 psycopg2-binary
+dash-bootstrap-components
+dash-ag-grid
 gunicorn
