@@ -22,50 +22,73 @@ POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
 POSTGRES_DB_USER = os.getenv('POSTGRES_DB_USER')
 POSTGRES_DB_PASSWORD = os.getenv('POSTGRES_DB_PASSWORD')
 
-try:
-    conn = psycopg2.connect(
-        dbname=POSTGRES_DB_NAME,
-        user=POSTGRES_DB_USER,
-        password=POSTGRES_DB_PASSWORD,
-        host=POSTGRES_DB_HOST,
-        port=POSTGRES_PORT,
-    )
-    cursor = conn.cursor()
-    query = """
-    SELECT po.title, po.style, po.song_type, po.genres, po.language, po.created_at,
-           s.name AS singer, s.gender AS singer_gender, f.filename AS filename,
-           f.file_path AS s3_path, f.file_category, f.mime_type AS mime_type, f.file_type AS type
-    FROM project_observations po
-    JOIN project_singer_association psa ON psa.project_observation_id = po.id
-    JOIN singers s ON psa.singer_id = s.id
-    JOIN files f ON f.project_id = po.id
-    ORDER BY po.created_at DESC
-    """
+# Connexion to database
+conn = psycopg2.connect(
+    dbname=POSTGRES_DB_NAME,
+    user=POSTGRES_DB_USER,
+    password=POSTGRES_DB_PASSWORD,
+    host=POSTGRES_DB_HOST,
+    port=POSTGRES_PORT,
+)
+cursor = conn.cursor()
+
+heading = html.H1("OnOff Data Exploratory and Analysis", className="bg-secondary text-white p-2 mb-4")
+
+def fetch_data(query):
     cursor.execute(query)
     results = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
-    df = pd.DataFrame(results, columns=columns)
-except Exception as e:
-    print("Erreur PostgreSQL:", e)
-    df = pd.DataFrame()
+    return pd.DataFrame(results, columns=columns)
 
+def singer_gender_graph():
+    df = fetch_data("""
+        SELECT gender
+        FROM singers
+    """)
+    genre_counts = df["gender"].value_counts()
+    genre_df = genre_counts.reset_index()
+    genre_df.columns = ['gender', 'count']
 
-heading = html.H1("OnOff Data exploratory and Analysis", className="bg-secondary text-white p-2 mb-4")
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=genre_df['gender'],
+            values=genre_df['count'],
+            hole=0.3,
+            textinfo='label+value',
+            textfont_size=12
+        )]
+    )
+
+    fig.update_layout(
+        width=500,
+        height=400,
+        annotations=[
+            dict(
+                text=f"Total: {genre_df['count'].sum()}",
+                x=1.2,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=18)
+            ),
+            dict(
+                text='Genre',
+                x=1.19,
+                y=1.1,
+                showarrow=False,
+                font=dict(size=18)
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Proportion de male et female"), className="text-center"),
+        dcc.Graph(figure=fig, style={"height":250}, config={'response': True})
+    ])
 
 app.layout = dbc.Container(
     [
-        dcc.Store(id="store-selected", data={}),
         heading,
-        dbc.Row([
-            # dbc.Col([control_panel, info], md=3),
-            dbc.Col(
-                [
-                    dcc.Markdown(id="title"),
-                    dbc.Row([dbc.Col(html.Div(id="paygap-card")), dbc.Col( html.Div(id="bonusgap-card"))]),
-                    html.Div(id="bar-chart-card", className="mt-4"),
-                ],  md=9
-            ),
-        ]),
+        dbc.Col(singer_gender_graph())
     ],
     fluid=True,
 )
