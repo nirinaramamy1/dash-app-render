@@ -25,24 +25,37 @@ POSTGRES_DB_USER = os.getenv('POSTGRES_DB_USER')
 POSTGRES_DB_PASSWORD = os.getenv('POSTGRES_DB_PASSWORD')
 
 # Connexion to database
-conn = psycopg2.connect(
-    dbname=POSTGRES_DB_NAME,
-    user=POSTGRES_DB_USER,
-    password=POSTGRES_DB_PASSWORD,
-    host=POSTGRES_DB_HOST,
-    port=POSTGRES_PORT,
-)
-cursor = conn.cursor()
+# conn = psycopg2.connect(
+#     dbname=POSTGRES_DB_NAME,
+#     user=POSTGRES_DB_USER,
+#     password=POSTGRES_DB_PASSWORD,
+#     host=POSTGRES_DB_HOST,
+#     port=POSTGRES_PORT,
+# )
+# cursor = conn.cursor()
 
 on_off_head = html.H1("OnOff Data visualisation", className="bg-secondary text-white p-2")
 singer_head = html.H2("Singers visualisation", className="bg-secondary text-white p-2")
 singer_project_head = html.H2("Singers interaction with projects visualisation", className="bg-secondary text-white p-2")
 
+# def fetch_data(query):
+#     cursor.execute(query)
+#     results = cursor.fetchall()
+#     columns = [desc[0] for desc in cursor.description]
+#     return pd.DataFrame(results, columns=columns)
 def fetch_data(query):
-    cursor.execute(query)
-    results = cursor.fetchall()
-    columns = [desc[0] for desc in cursor.description]
-    return pd.DataFrame(results, columns=columns)
+    with psycopg2.connect(
+        dbname=POSTGRES_DB_NAME,
+        user=POSTGRES_DB_USER,
+        password=POSTGRES_DB_PASSWORD,
+        host=POSTGRES_DB_HOST,
+        port=POSTGRES_PORT,
+    ) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            results = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            return pd.DataFrame(results, columns=columns)
 
 def singer_gender_graph():
     df = fetch_data("""
