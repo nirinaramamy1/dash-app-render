@@ -65,8 +65,6 @@ def singer_gender_graph():
     )
 
     fig.update_layout(
-        width=500,
-        height=400,
         annotations=[
             dict(
                 text=f"Total: {df['count'].sum()}",
@@ -117,8 +115,6 @@ def singer_project_style():
     )
 
     fig.update_layout(
-        width=500,
-        height=400,
         annotations=[
             dict(
                 text=f"Total: {df['count'].sum()}",
@@ -145,6 +141,151 @@ def singer_project_style():
         )
     ], className="mt-2 mb-2")
 
+def project_per_language():
+    df = fetch_data("""
+        SELECT language
+        FROM project_observations
+    """)
+    # Compute project counts by language
+    df = df["language"].value_counts().reset_index()
+    df.columns = ['lang', 'count']
+
+    # Create the bar chart using Graph Objects
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=df['lang'],
+                y=df['count'],
+                text=df['count'],
+                # textposition='outside',
+                # textfont=dict(size=8),
+                marker=dict(
+                    color=list(range(len(df['lang'].values))), # Assign colors based on language
+                    # colorscale='Viridis'  # Use a colorscale for distinct colors
+                )
+            )
+        ]
+    )
+
+    # Update layout to match the original styling
+    fig.update_layout(
+        # title='Projets répartis par langue',
+        xaxis_title='Langues',
+        yaxis_title='Nombre de projets',
+        showlegend=False,
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        annotations=[
+            dict(
+                text=f"Total: {df['count'].sum()}",
+                x=1,
+                y=1.1,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=18),
+                align="left"
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Proportion des projets par langue"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
+def project_per_song_type():
+    df = fetch_data("""
+        SELECT song_type
+        FROM project_observations
+    """)
+    # Compute project counts by song_type
+    df = df["song_type"].value_counts().reset_index()
+    df.columns = ['type', 'count']
+
+    # Create the bar chart using Graph Objects
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=df['type'],
+                y=df['count'],
+                text=df['count'],
+                # textposition='outside',
+                # textfont=dict(size=8),
+                marker=dict(
+                    color=list(range(len(df['type'].values))), # Assign colors based on language
+                )
+            )
+        ]
+    )
+
+    # Update layout to match the original styling
+    fig.update_layout(
+        # title='Projets répartis par langue',
+        xaxis_title='Type de chant',
+        yaxis_title='Nombre de projets',
+        showlegend=False,
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        annotations=[
+            dict(
+                text=f"Total: {df['count'].sum()}",
+                x=1,
+                y=1.1,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=18),
+                align="left"
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Proportion des projets par type de chants"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
+def project_genres_graph():
+    df_project = fetch_data("""
+        SELECT genres
+        FROM project_observations
+    """)
+
+    df = df_project["genres"].apply(genres_preprocessing).value_counts().reset_index()
+    df.columns = ['genres', 'count']
+
+    fig = go.Figure(go.Treemap(
+        labels=df['genres'],
+        parents=[""] * len(df),
+        values=df['count'],
+        marker=dict(
+            colors=df['count'],
+            colorscale='Viridis',
+            colorbar=dict(title='Count')
+        ),
+        texttemplate='%{label}<br><br>%{value}',
+        # textfont=dict(size=14),
+    ))
+
+    fig.update_layout(
+        margin=dict(t=0, l=0, r=0, b=0)
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Genres musicaux"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
 app.layout = dbc.Container(
     [
         on_off_head,
@@ -155,6 +296,9 @@ app.layout = dbc.Container(
         singer_project_head,
         dbc.Row([
             dbc.Col(singer_project_style()),
+            dbc.Col(project_per_language()),
+            dbc.Col(project_per_song_type()),
+            dbc.Col(project_genres_graph()),
         ]),
     ],
     fluid=True,
@@ -162,3 +306,4 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=10000)
+    # app.run(debug=True, host="localhost", port=3000)
