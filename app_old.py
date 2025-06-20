@@ -24,8 +24,25 @@ POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
 POSTGRES_DB_USER = os.getenv('POSTGRES_DB_USER')
 POSTGRES_DB_PASSWORD = os.getenv('POSTGRES_DB_PASSWORD')
 
-on_off_head = html.H1("OnOff Data visualisation", className="bg-secondary text-white p-2")
+# Connexion to database
+# conn = psycopg2.connect(
+#     dbname=POSTGRES_DB_NAME,
+#     user=POSTGRES_DB_USER,
+#     password=POSTGRES_DB_PASSWORD,
+#     host=POSTGRES_DB_HOST,
+#     port=POSTGRES_PORT,
+# )
+# cursor = conn.cursor()
 
+on_off_head = html.H1("OnOff Data visualisation", className="bg-secondary text-white p-2")
+singer_head = html.H2("Singers visualisation", className="bg-secondary text-white p-2")
+singer_project_head = html.H2("Singers interaction with projects visualisation", className="bg-secondary text-white p-2")
+
+# def fetch_data(query):
+#     cursor.execute(query)
+#     results = cursor.fetchall()
+#     columns = [desc[0] for desc in cursor.description]
+#     return pd.DataFrame(results, columns=columns)
 def fetch_data(query):
     with psycopg2.connect(
         dbname=POSTGRES_DB_NAME,
@@ -281,126 +298,6 @@ def project_genres_graph():
         )
     ], className="mt-2 mb-2")
 
-def project_file_category():
-    df = fetch_data("""
-        SELECT po.title, f.file_category
-        FROM project_observations po
-        JOIN project_singer_association psa ON psa.project_observation_id = po.id
-        JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
-        ORDER BY po.created_at DESC
-    """)
-    # Compute project counts by file_category
-    df = df.drop_duplicates(subset=["title"]).reset_index(drop=True)
-    df = df.groupby(["file_category"])["title"].count().reset_index()
-    df.columns = ["category", "count"]
-
-    # Create the bar chart using Graph Objects
-    fig = go.Figure(
-        data=[
-            go.Bar(
-                x=df['category'],
-                y=df['count'],
-                text=df['count'],
-                # textposition='outside',
-                # textfont=dict(size=8),
-                marker=dict(
-                    color=list(range(len(df['category'].values))), # Assign colors based on language
-                )
-            )
-        ]
-    )
-
-    # Update layout to match the original styling
-    fig.update_layout(
-        # title='Projets répartis par langue',
-        xaxis_title='Categorie de fichiers',
-        yaxis_title='Nombre de projets',
-        showlegend=False,
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        annotations=[
-            dict(
-                text=f"Total: {df['count'].sum()}",
-                x=1,
-                y=1.1,
-                xref="paper",
-                yref="paper",
-                showarrow=False,
-                font=dict(size=18),
-                align="left"
-            )
-        ]
-    )
-
-    return dbc.Card([
-        dbc.CardHeader(html.H2("Proportion des projets à titre unique par categories"), className="text-center"),
-        dbc.CardBody(
-            [dcc.Graph(figure=fig, config={'responsive': True})],
-            className="d-flex justify-content-center align-items-center"
-        )
-    ], className="mt-2 mb-2")
-
-def project_file_type():
-    df = fetch_data("""
-        SELECT po.title, f.file_type
-        FROM project_observations po
-        JOIN project_singer_association psa ON psa.project_observation_id = po.id
-        JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
-        ORDER BY po.created_at DESC
-    """)
-    # Compute project counts by file_type
-    df = df.drop_duplicates(subset=["title"]).reset_index(drop=True)
-    df = df.groupby(["file_type"])["title"].count().reset_index()
-    df.columns = ["type", "count"]
-
-    # Create the bar chart using Graph Objects
-    fig = go.Figure(
-        data=[
-            go.Bar(
-                x=df['type'],
-                y=df['count'],
-                text=df['count'],
-                # textposition='outside',
-                # textfont=dict(size=8),
-                marker=dict(
-                    color=list(range(len(df['type'].values))), # Assign colors based on language
-                )
-            )
-        ]
-    )
-
-    # Update layout to match the original styling
-    fig.update_layout(
-        # title='Projets répartis par langue',
-        xaxis_title='Type de fichiers',
-        yaxis_title='Nombre de projets',
-        showlegend=False,
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        annotations=[
-            dict(
-                text=f"Total: {df['count'].sum()}",
-                x=1,
-                y=1.1,
-                xref="paper",
-                yref="paper",
-                showarrow=False,
-                font=dict(size=18),
-                align="left"
-            )
-        ]
-    )
-
-    return dbc.Card([
-        dbc.CardHeader(html.H2("Proportion des projets à titre unique par type"), className="text-center"),
-        dbc.CardBody(
-            [dcc.Graph(figure=fig, config={'responsive': True})],
-            className="d-flex justify-content-center align-items-center"
-        )
-    ], className="mt-2 mb-2")
-
 singers = fetch_data("""
     SELECT name
     FROM singers
@@ -410,38 +307,35 @@ singers = fetch_data("""
 app.layout = dbc.Container(
     [
         on_off_head,
+        singer_head,
         dbc.Row([
             dbc.Col(singer_gender_graph()),
-            dbc.Col(singer_project_style()),
         ]),
+        singer_project_head,
         dbc.Row([
+            dbc.Col(singer_project_style()),
             dbc.Col(project_per_language()),
             dbc.Col(project_per_song_type()),
-        ]),
-        dbc.Row([
             dbc.Col(project_genres_graph()),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H2("Projets par langue pour le chanteur", className="text-center"),
-                    ]),
-                    dbc.CardBody([
-                        dbc.Row([
-                                dcc.Dropdown(
-                                id='singer-dropdown',
-                                options=[{'label': singer, 'value': singer} for singer in singers],
-                                value=singers[0],
-                            ),
+            dbc.Row([
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H2("Projets par langue pour le chanteur", className="text-center"),
                         ]),
-                        dbc.Row(id='singer-projects-graph')
-                    ])
-                ], className="mt-2 mb-2")
-            )
+                        dbc.CardBody([
+                            dbc.Row([
+                                    dcc.Dropdown(
+                                    id='singer-dropdown',
+                                    options=[{'label': singer, 'value': singer} for singer in singers],
+                                    value=singers[0],
+                                ),
+                            ]),
+                            dbc.Row(id='singer-projects-graph')
+                        ])
+                    ]))
+            ], className="mt-2 mb-2", align="center")
         ]),
-        dbc.Row([
-            dbc.Col(project_file_category()),
-            dbc.Col(project_file_type())
-        ])
     ],
     fluid=True,
 )
