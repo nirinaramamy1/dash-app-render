@@ -401,6 +401,128 @@ def project_file_type():
         )
     ], className="mt-2 mb-2")
 
+def project_file_type_extension():
+    df = fetch_data("""
+        SELECT f.filename
+        FROM project_observations po
+        JOIN project_singer_association psa ON psa.project_observation_id = po.id
+        JOIN singers s ON psa.singer_id = s.id
+        JOIN files f ON f.project_id = po.id
+        ORDER BY po.created_at DESC
+    """)
+    # Compute project counts by file_type extension
+    df["filename_ext"] = df["filename"].apply(lambda x : x.split(".")[-1].lower())
+    df = df.groupby(["filename_ext"])["filename"].count().reset_index()
+    df.columns = ["extension", "count"]
+
+    # Create the bar chart using Graph Objects
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=df['extension'],
+                y=df['count'],
+                text=df['count'],
+                # textposition='outside',
+                # textfont=dict(size=8),
+                marker=dict(
+                    color=list(range(len(df['extension'].values))), # Assign colors based on language
+                )
+            )
+        ]
+    )
+
+    # Update layout to match the original styling
+    fig.update_layout(
+        # title='Projets répartis par langue',
+        xaxis_title='Type de fichiers',
+        yaxis_title='Nombre de fichiers',
+        showlegend=False,
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        annotations=[
+            dict(
+                text=f"Total: {df['count'].sum()}",
+                x=1,
+                y=1.1,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=18),
+                align="left"
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Poportion des fichiers"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
+def project_file_type_extension_per_file_category():
+    df = fetch_data("""
+        SELECT po.title, f.filename, f.file_category
+        FROM project_observations po
+        JOIN project_singer_association psa ON psa.project_observation_id = po.id
+        JOIN singers s ON psa.singer_id = s.id
+        JOIN files f ON f.project_id = po.id
+        ORDER BY po.created_at DESC
+    """)
+    
+    # Extraire l'extension
+    df["filename_ext"] = df["filename"].apply(lambda x: x.split(".")[-1].lower())
+    
+    df = df.pivot_table(
+        index='filename_ext',
+        columns='file_category',
+        values='title',
+        aggfunc='count',
+        fill_value=0
+    )
+
+    # Création de la heatmap avec go.Heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=df.values,
+        x=df.columns.tolist(),
+        y=df.index.tolist(),
+        text=df.values,
+        texttemplate="%{text}",
+        colorscale='Blues',
+        colorbar=dict(title='Nb fichiers'),
+        hovertemplate='Extension: %{y}<br>Catégorie: %{x}<br>Nb fichiers: %{z}<extra></extra>'
+    ))
+
+
+    # Mise en forme du layout
+    fig.update_layout(
+        # title='Carte de chaleur des fichiers par extension et catégorie',
+        xaxis_title='Catégorie',
+        yaxis_title='Extension',
+        # template='plotly_white'
+        annotations=[
+            dict(
+                text=f"Total: {df.sum().sum()}",
+                x=1,
+                y=1.1,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=18),
+                align="left"
+            )
+        ]
+    )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H2("Proportion des fichiers par extension et catégorie"), className="text-center"),
+        dbc.CardBody(
+            [dcc.Graph(figure=fig, config={'responsive': True})],
+            className="d-flex justify-content-center align-items-center"
+        )
+    ], className="mt-2 mb-2")
+
 singers = fetch_data("""
     SELECT name
     FROM singers
@@ -441,6 +563,10 @@ app.layout = dbc.Container(
         dbc.Row([
             dbc.Col(project_file_category()),
             dbc.Col(project_file_type())
+        ]),
+        dbc.Row([
+            dbc.Col(project_file_type_extension()),
+            dbc.Col(project_file_type_extension_per_file_category())
         ])
     ],
     fluid=True,
