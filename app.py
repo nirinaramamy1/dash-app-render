@@ -6,16 +6,17 @@ import dash_ag_grid as dag
 import plotly.graph_objects as go
 import plotly.express as px
 import os
+import re
 from dotenv import load_dotenv
 from unidecode import unidecode
 
 # Dash app
 app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
-server = app.server
+# server = app.server
 
 # Load environment variables
 load_dotenv('/etc/secrets/env_file')
-# load_dotenv('.env')
+load_dotenv('.env')
 
 # PostgreSQL credentials
 POSTGRES_DB_HOST = os.getenv('POSTGRES_DB_HOST')
@@ -87,15 +88,29 @@ def singer_gender_graph():
     ], className="mt-2 mb-2")
 
 def genres_preprocessing(genre):
-    return unidecode(str(genre).strip().lower())
+    # return unidecode(
+    #     str(genre.replace(";", ",").replace("/", ",").replace("-", " ")
+    #     ).strip().lower().replace("rnb", "r&b").split(",")[0]
+    # )
+    first_genre = re.sub(r'\s+', ' ', genre.replace(";", ",").replace("/", ",").replace("-", " ").lower().replace("rnb", "r&b")).strip().split(",")[0]
+    return unidecode(first_genre)
+
+def normalize_row(row):
+    if '|' in row['genres']:
+        genres = [g.strip() for g in row['genres'].split('|')]
+        if row['file_category'] == 'DELIVERABLE':
+            return pd.Series([genres[0], row['project_id'], 'DELIVERABLE'])
+        elif row['file_category'] == 'REFERENCES':
+            return pd.Series([genres[1], row['project_id'], 'REFERENCES'])
+    else:
+        return pd.Series([row['genres'], row['project_id'], row['file_category']])
+    
 
 def singer_project_style():
     df = fetch_data("""
-        SELECT genres, style
+        SELECT style
         FROM project_observations
     """)
-    df = df[~df["genres"].isna()].reset_index(drop=True)
-    df.loc[:,"genres"] = df["genres"].apply(genres_preprocessing)
     df = df["style"].value_counts().reset_index()
     df.columns = ['style', 'count']
 
@@ -248,12 +263,20 @@ def project_per_song_type():
     ], className="mt-2 mb-2")
 
 def project_genres_graph():
-    df_project = fetch_data("""
-        SELECT genres
-        FROM project_observations
+    df = fetch_data("""
+        SELECT po.id AS project_id, po.genres, f.file_category
+        FROM project_observations po
+        JOIN project_singer_association psa ON psa.project_observation_id = po.id
+        JOIN singers s ON psa.singer_id = s.id
+        JOIN files f ON f.project_id = po.id
+        ORDER BY po.created_at DESC
     """)
-
-    df = df_project["genres"].apply(genres_preprocessing).value_counts().reset_index()
+    df = df.dropna(subset=["genres"], ignore_index=True)
+    df = df.apply(normalize_row, axis=1)
+    df.columns = ['genres', 'project_id', 'file_category']
+    df.genres = df.genres.values
+    df = df.dropna(subset=["genres"], ignore_index=True)
+    df = df["genres"].apply(genres_preprocessing).value_counts().reset_index()
     df.columns = ['genres', 'count']
 
     fig = go.Figure(go.Treemap(
