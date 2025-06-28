@@ -12,11 +12,11 @@ from unidecode import unidecode
 
 # Dash app
 app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
-# server = app.server
+server = app.server
 
 # Load environment variables
 load_dotenv('/etc/secrets/env_file')
-load_dotenv('.env')
+# load_dotenv('.env')
 
 # PostgreSQL credentials
 POSTGRES_DB_HOST = os.getenv('POSTGRES_DB_HOST')
