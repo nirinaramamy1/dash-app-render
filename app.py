@@ -268,7 +268,8 @@ def project_genres_graph():
         FROM project_observations po
         JOIN project_singer_association psa ON psa.project_observation_id = po.id
         JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
+        JOIN project_files pf on pf.project_id=po.id
+        JOIN files f ON f.id=pf.file_id
         ORDER BY po.created_at DESC
     """)
     df = df.dropna(subset=["genres"], ignore_index=True)
@@ -310,7 +311,8 @@ def project_file_category():
         FROM project_observations po
         JOIN project_singer_association psa ON psa.project_observation_id = po.id
         JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
+        JOIN project_files pf on pf.project_id=po.id
+        JOIN files f ON f.id=pf.file_id
         ORDER BY po.created_at DESC
     """)
     # Compute project counts by file_category
@@ -370,7 +372,8 @@ def project_file_type():
         FROM project_observations po
         JOIN project_singer_association psa ON psa.project_observation_id = po.id
         JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
+        JOIN project_files pf on pf.project_id=po.id
+        JOIN files f ON f.id=pf.file_id
         ORDER BY po.created_at DESC
     """)
     # Compute project counts by file_type
@@ -430,7 +433,8 @@ def project_file_type_extension():
         FROM project_observations po
         JOIN project_singer_association psa ON psa.project_observation_id = po.id
         JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
+        JOIN project_files pf on pf.project_id=po.id
+        JOIN files f ON f.id=pf.file_id
         ORDER BY po.created_at DESC
     """)
     # Compute project counts by file_type extension
@@ -490,7 +494,8 @@ def project_file_type_extension_per_file_category():
         FROM project_observations po
         JOIN project_singer_association psa ON psa.project_observation_id = po.id
         JOIN singers s ON psa.singer_id = s.id
-        JOIN files f ON f.project_id = po.id
+        JOIN project_files pf on pf.project_id=po.id
+        JOIN files f ON f.id=pf.file_id
         ORDER BY po.created_at DESC
     """)
     
